@@ -56,6 +56,38 @@ python3 -m http.server 8000
 
 > The **Copy** button uses the Clipboard API. Some browsers block it on `file://` pages. If that happens, the output text is selected for you, so press ⌘C / Ctrl+C to copy it.
 
+## Things to know
+
+- **Not plain Base64.** The output is Base64 of the *URI-encoded* text, so a standard Base64 decoder (such as `base64 -d`) returns something like `%7B%22employee_id%22:1042%7D`, not the original JSON. Use this tool's decoder, or run `decodeURIComponent` on the result yourself.
+- **Standard alphabet out.** The encoder outputs standard Base64 with `+`, `/` and `=` padding. If you need URL-safe output, replace `+` with `-` and `/` with `_`. The decoder accepts both forms.
+- **Whitespace.** The encoder trims leading and trailing whitespace. With **Is Object** ticked, the JSON is minified, so formatting inside it is not kept either.
+- **Key order and numbers** are kept as `JSON.parse` reads them. Very large integers (beyond 2^53) lose precision, as they do in any JavaScript JSON parser.
+- **Is Object syncs one way.** **← Encode this** copies the decoder's **Is Object** setting to the encoder. **Decode this →** leaves the decoder's setting alone.
+
+## Troubleshooting
+
+| Message | What it means | What to do |
+| --- | --- | --- |
+| *Input is not valid JSON* | **Is Object** is ticked but the input doesn't parse as JSON. | Fix the JSON (watch for trailing commas and single quotes), or untick **Is Object**. |
+| *Input is not valid Base64* | The decoder input has characters outside the Base64 alphabet, or the wrong length. | Check that the whole value was pasted, with no cut-off characters or extra quotes. |
+| *Decoded, but the result is not JSON* | The Base64 was valid but the decoded text isn't JSON. | Untick **Is Object** in the decoder if you expect plain text. |
+| *Could not encode this text* | The input has characters `encodeURI` can't handle, such as a broken emoji (a lone surrogate). | Retype or remove the damaged character. |
+
+## Privacy
+
+All encoding and decoding happens in your browser with built-in JavaScript functions. Your input is never sent to a server or saved. The only network requests are for the Google Fonts stylesheet and font files.
+
+## Browser support
+
+Works in current versions of Chrome, Edge, Firefox and Safari. It needs `TextDecoder`, `navigator.clipboard`, and CSS grid, which every modern browser has.
+
+## Contributing
+
+1. Fork the repo and create a branch.
+2. Edit `index.html`. Styles are in the `<style>` block and logic is in the `<script>` block at the bottom.
+3. Open the page in a browser and check that a few values round-trip: JSON, plain text, and text with non-ASCII characters such as `café` or `日本`.
+4. Open a pull request that describes the change.
+
 ## Project structure
 
 ```
