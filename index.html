@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Encode/Decode</title>
+<meta name="description" content="Base64 encoder and decoder for JSON API payloads.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #eef1f5;
+    --surface: #ffffff;
+    --fg: #16202c;
+    --muted: #5b6878;
+    --line: #d5dbe3;
+    --field: #f7f9fb;
+    --accent: #2350c4;
+    --accent-soft: #e3eafb;
+    --decode: #0d7a6c;
+    --decode-soft: #dcf1ed;
+    --error: #b4232c;
+    --error-soft: #fbe6e7;
+    --warn: #8a5a00;
+    --warn-soft: #fdf1d8;
+    --enc-field: #f4f7fe;
+    --dec-field: #f2faf8;
+    --violet: #6b3fc4;
+    --violet-soft: #eee7fb;
+    --font-ui: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 0% 0%, var(--accent-soft) 0, transparent 45%),
+      radial-gradient(circle at 100% 100%, var(--decode-soft) 0, transparent 45%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    color: var(--fg);
+    font-family: var(--font-ui);
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 28px 16px 40px;
+  }
+  .wrap { width: 100%; margin: 0 auto; display: grid; gap: 22px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px 24px; text-align: center; }
+  h1 {
+    margin: 0; font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; text-align: center;
+    background: linear-gradient(90deg, var(--accent), var(--violet) 50%, var(--decode));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  #resetAll { background: var(--violet-soft); border-color: transparent; color: var(--violet); }
+  #resetAll:hover { border-color: var(--violet); }
+  .sub { margin: 4px auto 0; color: var(--muted); max-width: 62ch; text-align: center; }
+
+  .panes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 18px; }
+  .pane {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px;
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+    box-shadow: 0 1px 2px rgba(22, 32, 44, 0.04), 0 4px 14px rgba(22, 32, 44, 0.05);
+  }
+  .pane.enc { border-top: 4px solid var(--accent); }
+  .pane.dec { border-top: 4px solid var(--decode); }
+  .pane.enc h2 { color: var(--accent); }
+  .pane.dec h2 { color: var(--decode); }
+  .pane-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+  .pane-title { display: flex; align-items: center; gap: 10px; }
+  h2 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+  .chip {
+    font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 2px 8px; border-radius: 999px;
+  }
+  .pane.enc .chip { background: var(--accent-soft); color: var(--accent); }
+  .pane.dec .chip { background: var(--decode-soft); color: var(--decode); }
+
+  .pipeline {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted);
+  }
+  .pipeline span { padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; }
+  .pane.enc .pipeline span { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+  .pane.dec .pipeline span { background: var(--decode-soft); border-color: transparent; color: var(--decode); }
+  .pipeline span.off { opacity: 0.4; text-decoration: line-through; }
+
+  .toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 500; user-select: none; }
+  .toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+  .pane.dec .toggle input { accent-color: var(--decode); }
+
+  .field { display: grid; gap: 6px; min-width: 0; }
+  .field-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; }
+  label.lbl { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  textarea {
+    width: 100%; min-height: 168px; resize: vertical;
+    font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.55;
+    background: var(--field); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px;
+    word-break: break-all; white-space: pre-wrap;
+  }
+  .pane.enc textarea { background: var(--enc-field); }
+  .pane.dec textarea { background: var(--dec-field); }
+  .pane textarea[readonly] { background: var(--surface); }
+  .pane.enc label.lbl { color: var(--accent); }
+  .pane.dec label.lbl { color: var(--decode); }
+  textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+  .pane.dec textarea:focus-visible { outline-color: var(--decode); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  button {
+    font: inherit; font-size: 0.82rem; font-weight: 500;
+    padding: 5px 11px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  }
+  button:hover { border-color: var(--muted); }
+  .pane.enc button:not(.primary):hover { border-color: var(--accent); color: var(--accent); }
+  .pane.dec button:not(.primary):hover { border-color: var(--decode); color: var(--decode); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .pane.dec button.primary { background: var(--decode); border-color: var(--decode); }
+  button.primary:hover { filter: brightness(1.08); }
+
+  .status {
+    font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted);
+    min-height: 1.5em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+  }
+  .status.error { color: var(--error); background: var(--error-soft); padding: 6px 10px; border-radius: 6px; font-family: var(--font-ui); font-size: 0.85rem; }
+  .status.warn { color: var(--warn); background: var(--warn-soft); padding: 6px 10px; border-radius: 6px; }
+
+  footer { color: var(--muted); font-size: 0.82rem; }
+  footer code { font-family: var(--font-mono); font-size: 0.9em; padding: 1px 5px; border-radius: 4px; }
+  footer code:first-of-type { background: var(--accent-soft); color: var(--accent); }
+  footer code:last-of-type { background: var(--decode-soft); color: var(--decode); }
+
+  /* Side-by-side layout: fit everything in the viewport and let the text boxes absorb the space. */
+  @media (min-width: 970px) and (min-height: 560px) {
+    body { height: 100vh; height: 100dvh; min-height: 0; padding: 20px 16px; }
+    .wrap { height: 100%; gap: 16px; grid-template-rows: auto minmax(0, 1fr) auto; }
+    .panes { min-height: 0; grid-auto-rows: minmax(0, 1fr); }
+    .pane { min-height: 0; grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr); }
+    .field { min-height: 0; grid-template-rows: auto minmax(0, 1fr); }
+    textarea { height: 100%; min-height: 60px; resize: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Encode/Decode</h1>
+    </div>
+    <button type="button" id="resetAll">Clear both</button>
+  </header>
+
+  <main class="panes">
+    <section class="pane enc" aria-labelledby="encTitle">
+      <div class="pane-head">
+        <div class="pane-title"><h2 id="encTitle">Encode</h2><span class="chip">text → base64</span></div>
+        <label class="toggle"><input type="checkbox" id="encIsObject" checked> Is Object</label>
+      </div>
+      <div class="pipeline" aria-label="Encoding steps">
+        <span id="encStepJson">JSON.stringify</span>→<span>encodeURI</span>→<span>Base64</span>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label class="lbl" for="encInput">Input</label>
+          <div class="actions"><button type="button" id="encClear">Clear</button></div>
+        </div>
+        <textarea id="encInput" spellcheck="false" placeholder='{"employee_id": 1042}'></textarea>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label class="lbl" for="encOutput">Encoded data</label>
+          <div class="actions">
+            <button type="button" id="encSend">Decode this →</button>
+            <button type="button" class="primary" id="encCopy">Copy</button>
+          </div>
+        </div>
+        <textarea id="encOutput" readonly spellcheck="false"></textarea>
+        <div class="status" id="encStatus" role="status"></div>
+      </div>
+    </section>
+
+    <section class="pane dec" aria-labelledby="decTitle">
+      <div class="pane-head">
+        <div class="pane-title"><h2 id="decTitle">Decode</h2><span class="chip">base64 → text</span></div>
+        <label class="toggle"><input type="checkbox" id="decIsObject" checked> Is Object</label>
+      </div>
+      <div class="pipeline" aria-label="Decoding steps">
+        <span>Base64</span>→<span>decodeURI</span>→<span id="decStepJson">format JSON</span>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label class="lbl" for="decInput">Input</label>
+          <div class="actions"><button type="button" id="decClear">Clear</button></div>
+        </div>
+        <textarea id="decInput" spellcheck="false" placeholder="JTdCJTIyZW1wbG95ZWVfaWQlMjI6MTA0MiU3RA=="></textarea>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label class="lbl" for="decOutput">Decoded data</label>
+          <div class="actions">
+            <button type="button" id="decSend">← Encode this</button>
+            <button type="button" class="primary" id="decCopy">Copy</button>
+          </div>
+        </div>
+        <textarea id="decOutput" readonly spellcheck="false"></textarea>
+        <div class="status" id="decStatus" role="status"></div>
+      </div>
+    </section>
+  </main>
+
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const encInput = $("encInput"), encOutput = $("encOutput"), encStatus = $("encStatus"), encIsObject = $("encIsObject");
+  const decInput = $("decInput"), decOutput = $("decOutput"), decStatus = $("decStatus"), decIsObject = $("decIsObject");
+
+  function setStatus(el, text, kind) {
+    el.textContent = text;
+    el.className = "status" + (kind ? " " + kind : "");
+  }
+
+  function encodeData() {
+    $("encStepJson").classList.toggle("off", !encIsObject.checked);
+    let data = encInput.value.trim();
+    if (!data) { encOutput.value = ""; setStatus(encStatus, ""); return; }
+
+    if (encIsObject.checked) {
+      try {
+        data = JSON.stringify(JSON.parse(data));
+      } catch (e) {
+        encOutput.value = "";
+        setStatus(encStatus, "Input is not valid JSON (" + e.message + "). Fix it, or untick Is Object to encode it as plain text.", "error");
+        return;
+      }
+    }
+
+    try {
+      const out = btoa(encodeURI(data));
+      encOutput.value = out;
+      setStatus(encStatus, data.length + " chars in → " + out.length + " chars out");
+    } catch (e) {
+      encOutput.value = "";
+      setStatus(encStatus, "Could not encode this text: " + e.message, "error");
+    }
+  }
+
+  function decodeData() {
+    $("decStepJson").classList.toggle("off", !decIsObject.checked);
+    let data = decInput.value.replace(/\s+/g, "");
+    if (!data) { decOutput.value = ""; setStatus(decStatus, ""); return; }
+
+    // Accept URL-safe Base64 and missing padding too.
+    data = data.replace(/-/g, "+").replace(/_/g, "/");
+    while (data.length % 4) data += "=";
+
+    let binary;
+    try {
+      binary = atob(data);
+    } catch (e) {
+      decOutput.value = "";
+      setStatus(decStatus, "Input is not valid Base64. Check for missing or extra characters.", "error");
+      return;
+    }
+
+    // Plain Base64 of UTF-8 text (not URI-encoded first) carries raw bytes; turn them back into characters.
+    if (/[\x80-\xff]/.test(binary)) {
+      const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+      binary = new TextDecoder().decode(bytes);
+    }
+
+    let text;
+    try {
+      text = decodeURI(binary);
+    } catch (e) {
+      text = binary;
+    }
+
+    if (decIsObject.checked) {
+      try {
+        decOutput.value = JSON.stringify(JSON.parse(text), null, 2);
+        setStatus(decStatus, data.length + " chars in → valid JSON");
+      } catch (e) {
+        decOutput.value = text;
+        setStatus(decStatus, "Decoded, but the result is not JSON. Showing it as plain text.", "warn");
+      }
+    } else {
+      decOutput.value = text;
+      setStatus(decStatus, data.length + " chars in → " + text.length + " chars out");
+    }
+  }
+
+  async function copy(textarea, button) {
+    if (!textarea.value) return;
+    const label = button.textContent;
+    try {
+      await navigator.clipboard.writeText(textarea.value);
+      button.textContent = "Copied";
+    } catch (e) {
+      textarea.focus();
+      textarea.select();
+      button.textContent = "Selected, press ⌘C / Ctrl+C";
+    }
+    setTimeout(() => { button.textContent = label; }, 1600);
+  }
+
+  encInput.addEventListener("input", encodeData);
+  encIsObject.addEventListener("change", encodeData);
+  decInput.addEventListener("input", decodeData);
+  decIsObject.addEventListener("change", decodeData);
+
+  $("encCopy").addEventListener("click", (e) => copy(encOutput, e.currentTarget));
+  $("decCopy").addEventListener("click", (e) => copy(decOutput, e.currentTarget));
+  $("encClear").addEventListener("click", () => { encInput.value = ""; encodeData(); encInput.focus(); });
+  $("decClear").addEventListener("click", () => { decInput.value = ""; decodeData(); decInput.focus(); });
+  $("resetAll").addEventListener("click", () => { encInput.value = ""; decInput.value = ""; encodeData(); decodeData(); });
+  $("encSend").addEventListener("click", () => { if (encOutput.value) { decInput.value = encOutput.value; decodeData(); } });
+  $("decSend").addEventListener("click", () => { if (decOutput.value) { encInput.value = decOutput.value; encIsObject.checked = decIsObject.checked; encodeData(); } });
+</script>
+</body>
+</html>
