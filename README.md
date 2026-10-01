@@ -93,6 +93,7 @@ Works in current versions of Chrome, Edge, Firefox and Safari. It needs `TextDec
 ```
 .
 ├── index.html   # The whole app: markup, styles, and script
+├── favicon.svg  # Browser tab icon
 └── README.md
 ```
 
